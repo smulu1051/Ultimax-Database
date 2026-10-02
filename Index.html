@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Details - MS Access Database</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Classic Desktop MS Access Form Theme */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2b2b2b;
+            color: #d1d5db;
+            user-select: none;
+        }
+
+        /* Access Form Field Styling */
+        .access-input {
+            background-color: #000000 !important;
+            color: #38bdf8 !important;
+            border: 1px solid #475569;
+            border-radius: 0px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            height: 22px;
+            width: 100%;
+        }
+
+        .access-input:focus {
+            outline: 1px solid #38bdf8;
+            background-color: #0a0a0a !important;
+        }
+
+        .access-label {
+            color: #38bdf8;
+            font-weight: 600;
+            font-size: 11px;
+            text-align: right;
+            padding-right: 6px;
+            white-space: nowrap;
+        }
+
+        .section-header {
+            color: #38bdf8;
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        /* Access Button Styling */
+        .access-btn {
+            background: linear-gradient(to bottom, #fde047 0%, #eab308 100%);
+            color: #000000;
+            border: 1px solid #a16207;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 10px;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.3);
+            border-radius: 2px;
+        }
+
+        .access-btn:hover {
+            background: linear-gradient(to bottom, #fef08a 0%, #facc15 100%);
+        }
+
+        .access-btn:active {
+            background: #ca8a04;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        }
+
+        .red-border-panel {
+            border: 1px solid #dc2626;
+            background-color: #333333;
+            padding: 6px;
+            margin-bottom: 6px;
+            position: relative;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 2px;
+        }
+
+        /* Header Pattern Background */
+        .header-bg {
+            background: radial-gradient(ellipse at center, #334155 0%, #0f172a 70%, #000000 100%);
+            border-bottom: 2px solid #ef4444;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white !important; color: black !important; }
+            .access-input { background-color: white !important; color: black !important; border: 1px solid #000 !important; }
+            .red-border-panel { border: 1px solid #000 !important; }
+            .access-label, .section-header { color: #000 !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Window Title Bar -->
+    <div class="no-print bg-slate-800 text-slate-200 px-3 py-1 flex justify-between items-center text-xs border-b border-slate-700">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-table text-red-500"></i>
+            <span class="font-bold">Employee Details</span>
+        </div>
+        <div class="flex items-center space-x-3 text-slate-400">
+            <button onclick="window.minimize()" class="hover:text-white"><i class="fas fa-minus"></i></button>
+            <button onclick="window.maximize()" class="hover:text-white"><i class="far fa-window-maximize"></i></button>
+            <button onclick="closeApp()" class="hover:text-red-400"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <!-- Access Top Action Navigation Ribbon -->
+    <div class="no-print bg-amber-100/90 border-b border-amber-300 p-1.5 flex flex-wrap items-center gap-2 text-xs">
+        <div class="flex items-center space-x-1 mr-2 bg-slate-200 p-0.5 border border-slate-400 rounded">
+            <span class="text-slate-800 font-semibold px-1">Go to</span>
+            <select id="goto-selector" onchange="navigateToRecord(this.value)" class="bg-white text-slate-900 border border-slate-400 text-xs px-1 py-0.5 rounded outline-none w-32">
+                <option value="">-- Select --</option>
+            </select>
+        </div>
+
+        <button onclick="saveAndNewRecord()" class="access-btn"><i class="fas fa-save mr-1"></i>Save and New</button>
+        <button onclick="emailEmployee()" class="access-btn"><i class="fas fa-envelope mr-1"></i>E-mail</button>
+        <button onclick="saveOutlookContact()" class="access-btn"><i class="fas fa-address-card mr-1"></i>Save As Outlook Contact</button>
+        <button onclick="openFindModal()" class="access-btn"><i class="fas fa-search mr-1"></i>Find Record</button>
+        <button onclick="closeApp()" class="access-btn"><i class="fas fa-door-open mr-1"></i>Close</button>
+        <button onclick="window.print()" class="access-btn"><i class="fas fa-print mr-1"></i>Print Record</button>
+        <button onclick="window.print()" class="access-btn"><i class="fas fa-file-pdf mr-1"></i>Print Record</button>
+
+        <div class="ml-auto text-xs text-slate-700 font-mono flex items-center space-x-2">
+            <span id="record-indicator" class="bg-white px-2 py-0.5 border border-slate-400 font-bold">Record: 0 of 0</span>
+        </div>
+    </div>
+
+    <!-- Header Banner -->
+    <div class="header-bg px-4 py-2 relative flex items-center justify-between border-b border-red-600">
+        <div class="absolute left-2 top-1 text-red-500 font-bold text-xs uppercase tracking-wider border-b border-red-500">
+            Personal Information
+        </div>
+        
+        <div class="mx-auto bg-slate-900/90 border border-slate-600 text-white font-bold text-lg px-8 py-1 rounded shadow-lg tracking-wide uppercase">
+            Employee Biodata/Profile
+        </div>
+
+        <div id="live-clock" class="text-amber-300 font-mono text-xs font-semibold">
+            9:23:03 am
+        </div>
+    </div>
+
+    <!-- Main Form Workspace -->
+    <form id="employee-form" onsubmit="event.preventDefault();" class="flex-grow p-2 space-y-2 max-w-[1600px] mx-auto w-full">
+        
+        <!-- Top Container with Red Outer Border -->
+        <div class="red-border-panel">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-2">
+                
+                <!-- LEFT COLUMN: Personal Details & Work Info (5 Cols) -->
+                <div class="lg:col-span-5 space-y-2">
+                    <div class="red-border-panel">
+                        <div class="section-header">Personal Details</div>
+                        
+                        <div class="grid grid-cols-12 gap-1 items-center">
+                            
+                            <!-- Fields Left Side -->
+                            <div class="col-span-8 space-y-1">
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Last Name:</label>
+                                    <input type="text" id="lastName" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">First Name:</label>
+                                    <input type="text" id="firstName" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">SEX:</label>
+                                    <select id="sex" class="col-span-7 access-input">
+                                        <option value=""></option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Date Of Birth:</label>
+                                    <input type="date" id="dob" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Number of Children:</label>
+                                    <input type="number" id="children" value="0" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Height:</label>
+                                    <input type="number" id="height" value="0" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Weight:</label>
+                                    <input type="number" id="weight" value="0" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Maritial Status:</label>
+                                    <select id="maritalStatus" class="col-span-7 access-input">
+                                        <option value=""></option>
+                                        <option value="Single">Single</option>
+                                        <option value="Married">Married</option>
+                                        <option value="Divorced">Divorced</option>
+                                        <option value="Widowed">Widowed</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Religion:</label>
+                                    <input type="text" id="religion" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Clan:</label>
+                                    <input type="text" id="clan" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Tribe:</label>
+                                    <input type="text" id="tribe" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Birth Place:</label>
+                                    <input type="text" id="birthPlace" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Mobile Phone:</label>
+                                    <input type="text" id="mobilePhone" value="0" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Mobile Phone1:</label>
+                                    <input type="text" id="mobilePhone1" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Email Address:</label>
+                                    <input type="email" id="email" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Home Ward:</label>
+                                    <input type="text" id="homeWard" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Home LLG:</label>
+                                    <input type="text" id="homeLLG" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Home District:</label>
+                                    <input type="text" id="homeDistrict" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Home Province:</label>
+                                    <input type="text" id="homeProvince" class="col-span-7 access-input">
+                                </div>
+                                <div class="grid grid-cols-12 items-center">
+                                    <label class="col-span-5 access-label">Nationality:</label>
+                                    <input type="text" id="nationality" class="col-span-7 access-input">
+                                </div>
+                            </div>
+
+                            <!-- Photo Box & Right Work Fields -->
+                            <div class="col-span-4 space-y-2 flex flex-col items-center">
+                                <!-- Profile Photo Frame -->
+                                <div class="relative w-32 h-36 border-2 border-white bg-white flex flex-col items-center justify-center overflow-hidden cursor-pointer group" onclick="triggerPhotoUpload()">
+                                    <img id="photo-preview" class="w-full h-full object-cover hidden" alt="Profile Preview">
+                                    <div id="photo-placeholder" class="text-center text-slate-800">
+                                        <i class="fas fa-user text-6xl"></i>
+                                        <div class="absolute bottom-1 right-1 bg-black text-white rounded-full w-6 h-6 flex items-center justify-center border border-white">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="photo-file" accept="image/*" class="hidden" onchange="previewPhoto(event)">
+                                </div>
+
+                                <!-- Employment Fields Column under Photo -->
+                                <div class="w-full space-y-1">
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Title:</label>
+                                        <select id="title" class="col-span-7 access-input">
+                                            <option value=""></option>
+                                            <option value="Mr.">Mr.</option>
+                                            <option value="Mrs.">Mrs.</option>
+                                            <option value="Ms.">Ms.</option>
+                                            <option value="Dr.">Dr.</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Employee ID:</label>
+                                        <input type="text" id="employeeId" class="col-span-7 access-input font-bold">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Employer:</label>
+                                        <input type="text" id="employer" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Start Date:</label>
+                                        <input type="date" id="startDate" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Job Title2:</label>
+                                        <select id="jobTitle2" class="col-span-7 access-input">
+                                            <option value=""></option>
+                                            <option value="Officer">Officer</option>
+                                            <option value="Manager">Manager</option>
+                                            <option value="Supervisor">Supervisor</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Department:</label>
+                                        <select id="department" class="col-span-7 access-input">
+                                            <option value=""></option>
+                                            <option value="HR">HR</option>
+                                            <option value="Finance">Finance</option>
+                                            <option value="Operations">Operations</option>
+                                            <option value="IT">IT</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Division:</label>
+                                        <select id="division" class="col-span-7 access-input">
+                                            <option value=""></option>
+                                            <option value="Corporate">Corporate</option>
+                                            <option value="Field Services">Field Services</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">HOD:</label>
+                                        <select id="hod" class="col-span-7 access-input">
+                                            <option value=""></option>
+                                            <option value="Approved">Approved</option>
+                                            <option value="Pending">Pending</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Supervisor:</label>
+                                        <input type="text" id="supervisor" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Work Location:</label>
+                                        <input type="text" id="workLocation" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Current Rate:</label>
+                                        <input type="text" id="currentRate" value="K0.00" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Status:</label>
+                                        <input type="text" id="status" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Exit Date:</label>
+                                        <input type="date" id="exitDate" class="col-span-7 access-input">
+                                    </div>
+                                    <div class="grid grid-cols-12 items-center">
+                                        <label class="col-span-5 access-label">Number Of years:</label>
+                                        <input type="number" id="numYears" value="0" class="col-span-7 access-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MIDDLE COLUMN: Previous Employment, Education, & Banking (4 Cols) -->
+                <div class="lg:col-span-4 space-y-2">
+                    
+                    <!-- Previous Employment Details -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Previous Employment Details</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Employer1:</label><input type="text" id="employer1" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position1:</label><input type="text" id="position1" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date1:</label><input type="date" id="startDate1" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date1:</label><input type="date" id="endDate1" class="col-span-7 access-input"></div>
+                            
+                            <div class="grid grid-cols-12 items-center pt-1"><label class="col-span-5 access-label">Employer2:</label><input type="text" id="employer2" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position2:</label><input type="text" id="position2" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date2:</label><input type="date" id="startDate2" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date2:</label><input type="date" id="endDate2" class="col-span-7 access-input"></div>
+                            
+                            <div class="grid grid-cols-12 items-center pt-1"><label class="col-span-5 access-label">Employer3:</label><input type="text" id="employer3" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position3:</label><input type="text" id="position3" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date3:</label><input type="date" id="startDate3" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date3:</label><input type="date" id="endDate3" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                    <!-- Educational Background -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Educational Background</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Highest Institution:</label><input type="text" id="highestInstitution" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Certificate Attained:</label><input type="text" id="certificateAttained" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Other Training:</label><input type="text" id="otherTraining" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Certificate Attained2:</label><input type="text" id="certificateAttained2" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bank Account Details -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Bank Account Details</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Account Number:</label><input type="text" id="accountNumber" value="0" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Bank Name:</label><input type="text" id="bankName" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Branch:</label><input type="text" id="branch" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: Residence, Emergency, Medical, & Documents (3 Cols) -->
+                <div class="lg:col-span-3 space-y-2">
+                    
+                    <!-- Current Residence -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Current Residence</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Lot/Section:</label><input type="text" id="lotSection" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Village Residence:</label><input type="text" id="villageResidence" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">LLG Residence:</label><input type="text" id="llgResidence" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">District Residence:</label><input type="text" id="districtResidence" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Province Residence:</label><input type="text" id="provinceResidence" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Zip/Postal Code:</label><input type="text" id="zipCode" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                    <!-- Emergency Contact Details -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Emergency Contact Details</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Full Name:</label><input type="text" id="emergFullName" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Phone No:</label><input type="text" id="emergPhone" value="0" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Address1:</label><input type="text" id="emergAddress" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Relationship:</label><input type="text" id="emergRelationship" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                    <!-- Medical Information -->
+                    <div class="red-border-panel">
+                        <div class="section-header">Medical Information</div>
+                        <div class="space-y-1">
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Medical Officer:</label><input type="text" id="medOfficer" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Insurance Carrier:</label><input type="text" id="insuranceCarrier" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Insurance Number:</label><input type="text" id="insuranceNumber" value="0" class="col-span-7 access-input"></div>
+                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Medications:</label><input type="text" id="medications" class="col-span-7 access-input"></div>
+                        </div>
+                    </div>
+
+                    <!-- Documents Box -->
+                    <div class="red-border-panel text-center">
+                        <div class="section-header">Documents</div>
+                        <div class="flex flex-col items-center justify-center p-2 bg-white/5 border border-dashed border-slate-500 rounded cursor-pointer" onclick="triggerDocUpload()">
+                            <div class="relative inline-block">
+                                <i class="fas fa-file-alt text-5xl text-slate-300"></i>
+                                <span class="absolute -right-2 -bottom-1 bg-purple-600 text-white rounded-full p-1 text-xs border border-white">
+                                    <i class="fas fa-paperclip"></i>
+                                </span>
+                            </div>
+                            <span id="doc-count-label" class="text-xs text-cyan-400 mt-2 font-semibold">0 Attachments</span>
+                            <input type="file" id="doc-file" multiple class="hidden" onchange="handleDocUpload(event)">
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </form>
+
+    <!-- Find Record Modal -->
+    <div id="find-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 hidden">
+        <div class="bg-slate-800 border-2 border-amber-500 rounded-sm w-96 shadow-2xl p-4 text-xs">
+            <div class="flex justify-between items-center border-b border-slate-600 pb-2 mb-3">
+                <span class="font-bold text-amber-400 text-sm"><i class="fas fa-search mr-1"></i>Find Employee Record</span>
+                <button onclick="closeFindModal()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-slate-300 mb-1">Search by Name or Employee ID:</label>
+                    <input type="text" id="search-query" onkeyup="filterFindResults()" placeholder="Type to filter..." class="w-full bg-black text-cyan-400 border border-slate-600 p-1.5 outline-none font-mono">
+                </div>
+
+                <div id="search-results" class="max-h-48 overflow-y-auto border border-slate-700 bg-slate-900 divide-y divide-slate-800">
+                    <!-- Results populated dynamically -->
+                </div>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeFindModal()" class="access-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        let db = JSON.parse(localStorage.getItem('ms_access_employee_db')) || [];
+        let currentRecordIndex = -1;
+        let currentPhotoData = '';
+        let attachedDocs = [];
+
+        // Digital Clock
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Initialize App
+        window.onload = function() {
+            if (db.length === 0) {
+                // Seed default empty sample record if empty
+                createDefaultRecord();
+            } else {
+                loadRecord(0);
+            }
+            updateDropdownSelector();
+        };
+
+        function createDefaultRecord() {
+            const sample = {
+                id: 'EMP-' + Math.floor(1000 + Math.random() * 9000),
+                lastName: 'Maletain',
+                firstName: 'Samuel',
+                sex: 'Male',
+                dob: '1990-05-14',
+                children: 2,
+                height: 175,
+                weight: 70,
+                maritalStatus: 'Married',
+                religion: 'Christian',
+                clan: 'Maletain North',
+                tribe: 'Central Tribe',
+                birthPlace: 'Port Moresby',
+                mobilePhone: '71234567',
+                mobilePhone1: '78901234',
+                email: 'samuel.maletain@example.com',
+                homeWard: 'Ward 1',
+                homeLLG: 'Moresby South',
+                homeDistrict: 'NCD',
+                homeProvince: 'NCD',
+                nationality: 'Papua New Guinean',
+                title: 'Mr.',
+                employeeId: 'EMP-1001',
+                employer: 'Maletain Association',
+                startDate: '2020-01-15',
+                jobTitle2: 'Officer',
+                department: 'IT',
+                division: 'Corporate',
+                hod: 'Approved',
+                supervisor: 'John Doe',
+                workLocation: 'Port Moresby HQ',
+                currentRate: 'K25.00',
+                status: 'Active',
+                exitDate: '',
+                numYears: 4,
+                photo: '',
+                docs: []
+            };
+            db.push(sample);
+            saveToStorage();
+            loadRecord(0);
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('ms_access_employee_db', JSON.stringify(db));
+            updateDropdownSelector();
+        }
+
+        function getFormData() {
+            return {
+                id: document.getElementById('employeeId').value || ('EMP-' + Date.now().toString().slice(-4)),
+                lastName: document.getElementById('lastName').value,
+                firstName: document.getElementById('firstName').value,
+                sex: document.getElementById('sex').value,
+                dob: document.getElementById('dob').value,
+                children: document.getElementById('children').value,
+                height: document.getElementById('height').value,
+                weight: document.getElementById('weight').value,
+                maritalStatus: document.getElementById('maritalStatus').value,
+                religion: document.getElementById('religion').value,
+                clan: document.getElementById('clan').value,
+                tribe: document.getElementById('tribe').value,
+                birthPlace: document.getElementById('birthPlace').value,
+                mobilePhone: document.getElementById('mobilePhone').value,
+                mobilePhone1: document.getElementById('mobilePhone1').value,
+                email: document.getElementById('email').value,
+                homeWard: document.getElementById('homeWard').value,
+                homeLLG: document.getElementById('homeLLG').value,
+                homeDistrict: document.getElementById('homeDistrict').value,
+                homeProvince: document.getElementById('homeProvince').value,
+                nationality: document.getElementById('nationality').value,
+                title: document.getElementById('title').value,
+                employeeId: document.getElementById('employeeId').value,
+                employer: document.getElementById('employer').value,
+                startDate: document.getElementById('startDate').value,
+                jobTitle2: document.getElementById('jobTitle2').value,
+                department: document.getElementById('department').value,
+                division: document.getElementById('division').value,
+                hod: document.getElementById('hod').value,
+                supervisor: document.getElementById('supervisor').value,
+                workLocation: document.getElementById('workLocation').value,
+                currentRate: document.getElementById('currentRate').value,
+                status: document.getElementById('status').value,
+                exitDate: document.getElementById('exitDate').value,
+                numYears: document.getElementById('numYears').value,
+                
+                // Previous Employment
+                employer1: document.getElementById('employer1').value,
+                position1: document.getElementById('position1').value,
+                startDate1: document.getElementById('startDate1').value,
+                endDate1: document.getElementById('endDate1').value,
+                employer2: document.getElementById('employer2').value,
+                position2: document.getElementById('position2').value,
+                startDate2: document.getElementById('startDate2').value,
+                endDate2: document.getElementById('endDate2').value,
+                employer3: document.getElementById('employer3').value,
+                position3: document.getElementById('position3').value,
+                startDate3: document.getElementById('startDate3').value,
+                endDate3: document.getElementById('endDate3').value,
+
+                // Education
+                highestInstitution: document.getElementById('highestInstitution').value,
+                certificateAttained: document.getElementById('certificateAttained').value,
+                otherTraining: document.getElementById('otherTraining').value,
+                certificateAttained2: document.getElementById('certificateAttained2').value,
+
+                // Bank
+                accountNumber: document.getElementById('accountNumber').value,
+                bankName: document.getElementById('bankName').value,
+                branch: document.getElementById('branch').value,
+
+                // Residence
+                lotSection: document.getElementById('lotSection').value,
+                villageResidence: document.getElementById('villageResidence').value,
+                llgResidence: document.getElementById('llgResidence').value,
+                districtResidence: document.getElementById('districtResidence').value,
+                provinceResidence: document.getElementById('provinceResidence').value,
+                zipCode: document.getElementById('zipCode').value,
+
+                // Emergency
+                emergFullName: document.getElementById('emergFullName').value,
+                emergPhone: document.getElementById('emergPhone').value,
+                emergAddress: document.getElementById('emergAddress').value,
+                emergRelationship: document.getElementById('emergRelationship').value,
+
+                // Medical
+                medOfficer: document.getElementById('medOfficer').value,
+                insuranceCarrier: document.getElementById('insuranceCarrier').value,
+                insuranceNumber: document.getElementById('insuranceNumber').value,
+                medications: document.getElementById('medications').value,
+
+                photo: currentPhotoData,
+                docs: attachedDocs
+            };
+        }
+
+        function loadRecord(index) {
+            if (index < 0 || index >= db.length) return;
+            currentRecordIndex = index;
+            const r = db[index];
+
+            const fields = [
+                'lastName','firstName','sex','dob','children','height','weight','maritalStatus',
+                'religion','clan','tribe','birthPlace','mobilePhone','mobilePhone1','email',
+                'homeWard','homeLLG','homeDistrict','homeProvince','nationality','title',
+                'employeeId','employer','startDate','jobTitle2','department','division','hod',
+                'supervisor','workLocation','currentRate','status','exitDate','numYears',
+                'employer1','position1','startDate1','endDate1','employer2','position2',
+                'startDate2','endDate2','employer3','position3','startDate3','endDate3',
+                'highestInstitution','certificateAttained','otherTraining','certificateAttained2',
+                'accountNumber','bankName','branch','lotSection','villageResidence','llgResidence',
+                'districtResidence','provinceResidence','zipCode','emergFullName','emergPhone',
+                'emergAddress','emergRelationship','medOfficer','insuranceCarrier','insuranceNumber','medications'
+            ];
+
+            fields.forEach(f => {
+                const el = document.getElementById(f);
+                if (el) el.value = r[f] !== undefined ? r[f] : '';
+            });
+
+            // Photo preview
+            currentPhotoData = r.photo || '';
+            const preview = document.getElementById('photo-preview');
+            const placeholder = document.getElementById('photo-placeholder');
+            if (currentPhotoData) {
+                preview.src = currentPhotoData;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+
+            // Documents
+            attachedDocs = r.docs || [];
+            document.getElementById('doc-count-label').textContent = `${attachedDocs.length} Attachments`;
+
+            // Indicator
+            document.getElementById('record-indicator').textContent = `Record: ${currentRecordIndex + 1} of ${db.length}`;
+            document.getElementById('goto-selector').value = currentRecordIndex;
+        }
+
+        function saveAndNewRecord() {
+            const data = getFormData();
+            if (currentRecordIndex >= 0 && currentRecordIndex < db.length) {
+                db[currentRecordIndex] = data;
+            } else {
+                db.push(data);
+            }
+            saveToStorage();
+
+            // Clear Form for New
+            document.getElementById('employee-form').reset();
+            currentPhotoData = '';
+            attachedDocs = [];
+            document.getElementById('photo-preview').classList.add('hidden');
+            document.getElementById('photo-placeholder').classList.remove('hidden');
+            document.getElementById('doc-count-label').textContent = '0 Attachments';
+            document.getElementById('employeeId').value = 'EMP-' + Math.floor(1000 + Math.random() * 9000);
+
+            currentRecordIndex = db.length; // New entry pointer
+            document.getElementById('record-indicator').textContent = `Record: New (${db.length + 1})`;
+            alert('Record saved successfully. Form ready for new employee profile.');
+        }
+
+        function updateDropdownSelector() {
+            const select = document.getElementById('goto-selector');
+            select.innerHTML = '<option value="">-- Select --</option>';
+            db.forEach((rec, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${rec.firstName || 'Unnamed'} ${rec.lastName || ''} (${rec.employeeId || idx})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function navigateToRecord(idx) {
+            if (idx === '') return;
+            loadRecord(parseInt(idx));
+        }
+
+        function triggerPhotoUpload() {
+            document.getElementById('photo-file').click();
+        }
+
+        function previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentPhotoData = e.target.result;
+                    const preview = document.getElementById('photo-preview');
+                    const placeholder = document.getElementById('photo-placeholder');
+                    preview.src = currentPhotoData;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function triggerDocUpload() {
+            document.getElementById('doc-file').click();
+        }
+
+        function handleDocUpload(event) {
+            const files = Array.from(event.target.files);
+            files.forEach(f => {
+                attachedDocs.push(f.name);
+            });
+            document.getElementById('doc-count-label').textContent = `${attachedDocs.length} Attachments`;
+        }
+
+        // Email & Outlook placeholders
+        function emailEmployee() {
+            const email = document.getElementById('email').value;
+            if (email) {
+                window.location.href = `mailto:${email}?subject=Employee%20Record%20-%20${document.getElementById('firstName').value}%20${document.getElementById('lastName').value}`;
+            } else {
+                alert('No email address entered for this employee.');
+            }
+        }
+
+        function saveOutlookContact() {
+            alert('Outlook vCard Contact exported for ' + document.getElementById('firstName').value + ' ' + document.getElementById('lastName').value);
+        }
+
+        // Find Modal
+        function openFindModal() {
+            document.getElementById('find-modal').classList.remove('hidden');
+            filterFindResults();
+        }
+
+        function closeFindModal() {
+            document.getElementById('find-modal').classList.add('hidden');
+        }
+
+        function filterFindResults() {
+            const query = document.getElementById('search-query').value.toLowerCase();
+            const container = document.getElementById('search-results');
+            container.innerHTML = '';
+
+            db.forEach((rec, idx) => {
+                const name = `${rec.firstName} ${rec.lastName}`.toLowerCase();
+                const empId = (rec.employeeId || '').toLowerCase();
+                if (name.includes(query) || empId.includes(query)) {
+                    const item = document.createElement('div');
+                    item.className = 'p-2 hover:bg-slate-700 cursor-pointer text-cyan-300 font-mono text-xs flex justify-between';
+                    item.innerHTML = `<span>${rec.firstName} ${rec.lastName}</span> <span class="text-slate-400">${rec.employeeId}</span>`;
+                    item.onclick = function() {
+                        loadRecord(idx);
+                        closeFindModal();
+                    };
+                    container.appendChild(item);
+                }
+            });
+        }
+
+        function closeApp() {
+            if (confirm('Close Employee Details database application?')) {
+                document.body.innerHTML = '<div class="flex items-center justify-center min-h-screen text-slate-400 font-mono">MS Access Database session closed. Refresh tab to restart.</div>';
+            }
+        }
+
+        // Window controls mock
+        window.minimize = () => alert('Application minimized.');
+        window.maximize = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        };
+    </script>
+</body>
+</html>
