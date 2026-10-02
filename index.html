@@ -1,856 +1,555 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Details - MS Access Database</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Classic Desktop MS Access Form Theme */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #2b2b2b;
-            color: #d1d5db;
-            user-select: none;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Details - Ultimax Database</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase JS SDK v9+ Modular -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      getDocs,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        /* Access Form Field Styling */
-        .access-input {
-            background-color: #000000 !important;
-            color: #38bdf8 !important;
-            border: 1px solid #475569;
-            border-radius: 0px;
-            padding: 2px 6px;
-            font-size: 11px;
-            font-family: 'Consolas', 'Courier New', monospace;
-            height: 22px;
-            width: 100%;
-        }
+    // Your Exact Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBf-8pFNCUXBZCw95Q_U-ZoIRdM-JcBQVA",
+      authDomain: "maletain-biodata.firebaseapp.com",
+      projectId: "maletain-biodata",
+      storageBucket: "maletain-biodata.firebasestorage.app",
+      messagingSenderId: "842340864694",
+      appId: "1:842340864694:web:18a5c4de782b07254e8c17",
+      measurementId: "G-T0XHS9MLS8"
+    };
 
-        .access-input:focus {
-            outline: 1px solid #38bdf8;
-            background-color: #0a0a0a !important;
-        }
+    // Initialize Firebase Services
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
 
-        .access-label {
-            color: #38bdf8;
-            font-weight: 600;
-            font-size: 11px;
-            text-align: right;
-            padding-right: 6px;
-            white-space: nowrap;
-        }
+      // Expose globally for script handlers
+      window.db = db;
+      window.auth = auth;
+      window.firestoreTools = { collection, addDoc, getDocs, doc, setDoc };
+      window.authTools = { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut };
 
-        .section-header {
-            color: #38bdf8;
-            font-weight: 700;
-            font-size: 12px;
-            text-align: center;
-            margin-bottom: 4px;
+      // Auth Monitor
+      onAuthStateChanged(auth, (user) => {
+        const authStatusLabel = document.getElementById('authStatusLabel');
+        const loginBtn = document.getElementById('loginBtn');
+        if (user) {
+          authStatusLabel.textContent = `User: ${user.email}`;
+          loginBtn.textContent = "Sign Out";
+          loginBtn.onclick = handleSignOut;
+          loadCloudRecords();
+        } else {
+          authStatusLabel.textContent = "Status: Signed Out";
+          loginBtn.textContent = "Sign In";
+          loginBtn.onclick = openAuthModal;
         }
+      });
+    } catch (e) {
+      console.error("Firebase Initialization Error:", e);
+    }
 
-        /* Access Button Styling */
-        .access-btn {
-            background: linear-gradient(to bottom, #fde047 0%, #eab308 100%);
-            color: #000000;
-            border: 1px solid #a16207;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 10px;
-            cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.3);
-            border-radius: 2px;
-        }
+    async function handleSignOut() {
+      try {
+        await signOut(window.auth);
+        alert("You have signed out successfully.");
+      } catch (err) {
+        alert("Sign Out Error: " + err.message);
+      }
+    }
 
-        .access-btn:hover {
-            background: linear-gradient(to bottom, #fef08a 0%, #facc15 100%);
-        }
+    window.openAuthModal = () => document.getElementById('authModal').classList.remove('hidden');
+    window.closeAuthModal = () => document.getElementById('authModal').classList.add('hidden');
+  </script>
 
-        .access-btn:active {
-            background: #ca8a04;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
-        }
+  <style>
+    /* Desktop Access UI Styles */
+    body {
+      background-color: #1a1a1a;
+      color: #38bdf8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .access-border-red {
+      border: 1.5px solid #ef4444;
+    }
 
-        .red-border-panel {
-            border: 1px solid #dc2626;
-            background-color: #333333;
-            padding: 6px;
-            margin-bottom: 6px;
-            position: relative;
-        }
+    .access-border-gray {
+      border: 1px solid #4b5563;
+    }
 
-        /* Scrollbars */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 2px;
-        }
+    .input-box {
+      background-color: #000000;
+      color: #38bdf8;
+      border: 1px solid #374151;
+      padding: 2px 6px;
+      font-size: 11px;
+      height: 22px;
+      width: 100%;
+    }
 
-        /* Header Pattern Background */
-        .header-bg {
-            background: radial-gradient(ellipse at center, #334155 0%, #0f172a 70%, #000000 100%);
-            border-bottom: 2px solid #ef4444;
-        }
+    .input-box:focus {
+      outline: 1px solid #38bdf8;
+      background-color: #082f49;
+    }
 
-        @media print {
-            .no-print { display: none !important; }
-            body { background-color: white !important; color: black !important; }
-            .access-input { background-color: white !important; color: black !important; border: 1px solid #000 !important; }
-            .red-border-panel { border: 1px solid #000 !important; }
-            .access-label, .section-header { color: #000 !important; }
-        }
-    </style>
+    .label-text {
+      color: #38bdf8;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: right;
+      padding-right: 6px;
+      white-space: nowrap;
+    }
+
+    .ribbon-btn {
+      background: linear-gradient(to bottom, #ffedd5, #fed7aa);
+      color: #000;
+      border: 1px solid #78350f;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .ribbon-btn:hover {
+      background: #fde68a;
+    }
+
+    .ribbon-btn:active {
+      transform: translateY(1px);
+    }
+
+    .header-banner {
+      background: radial-gradient(circle, #333 0%, #000 100%);
+      border-bottom: 2px solid #ef4444;
+      border-top: 2px solid #ef4444;
+    }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="p-2 select-none">
 
-    <!-- Window Title Bar -->
-    <div class="no-print bg-slate-800 text-slate-200 px-3 py-1 flex justify-between items-center text-xs border-b border-slate-700">
-        <div class="flex items-center space-x-2">
-            <i class="fas fa-table text-red-500"></i>
-            <span class="font-bold">Employee Details</span>
-        </div>
-        <div class="flex items-center space-x-3 text-slate-400">
-            <button onclick="window.minimize()" class="hover:text-white"><i class="fas fa-minus"></i></button>
-            <button onclick="window.maximize()" class="hover:text-white"><i class="far fa-window-maximize"></i></button>
-            <button onclick="closeApp()" class="hover:text-red-400"><i class="fas fa-times"></i></button>
-        </div>
+  <!-- TOP ACCESS RIBBON TOOLBAR -->
+  <div class="flex flex-wrap items-center justify-between bg-stone-300 p-1 mb-1 border border-black text-black">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold px-2 py-0.5 bg-stone-400 border border-stone-600">Employee Details</span>
+      
+      <div class="flex items-center gap-1 text-xs">
+        <label class="font-bold">Go to</label>
+        <select id="goToDropdown" onchange="loadSelectedRecord(this.value)" class="h-6 w-32 border border-black bg-white text-xs px-1">
+          <option value="">-- Select --</option>
+        </select>
+      </div>
+
+      <button onclick="saveAndNew()" class="ribbon-btn">Save and New</button>
+      <button onclick="sendEmail()" class="ribbon-btn">E-mail</button>
+      <button onclick="saveOutlookContact()" class="ribbon-btn">Save As Outlook Contact</button>
+      <button onclick="openSearchModal()" class="ribbon-btn">Find Record</button>
+      <button onclick="window.close()" class="ribbon-btn">Close</button>
+      <button onclick="window.print()" class="ribbon-btn">Print Record</button>
     </div>
 
-    <!-- Access Top Action Navigation Ribbon -->
-    <div class="no-print bg-amber-100/90 border-b border-amber-300 p-1.5 flex flex-wrap items-center gap-2 text-xs">
-        <div class="flex items-center space-x-1 mr-2 bg-slate-200 p-0.5 border border-slate-400 rounded">
-            <span class="text-slate-800 font-semibold px-1">Go to</span>
-            <select id="goto-selector" onchange="navigateToRecord(this.value)" class="bg-white text-slate-900 border border-slate-400 text-xs px-1 py-0.5 rounded outline-none w-32">
-                <option value="">-- Select --</option>
-            </select>
-        </div>
+    <div class="flex items-center gap-3">
+      <span id="authStatusLabel" class="text-xs font-semibold text-stone-700">Status: Initializing...</span>
+      <button id="loginBtn" onclick="openAuthModal()" class="ribbon-btn bg-cyan-200">Sign In</button>
+    </div>
+  </div>
 
-        <button onclick="saveAndNewRecord()" class="access-btn"><i class="fas fa-save mr-1"></i>Save and New</button>
-        <button onclick="emailEmployee()" class="access-btn"><i class="fas fa-envelope mr-1"></i>E-mail</button>
-        <button onclick="saveOutlookContact()" class="access-btn"><i class="fas fa-address-card mr-1"></i>Save As Outlook Contact</button>
-        <button onclick="openFindModal()" class="access-btn"><i class="fas fa-search mr-1"></i>Find Record</button>
-        <button onclick="closeApp()" class="access-btn"><i class="fas fa-door-open mr-1"></i>Close</button>
-        <button onclick="window.print()" class="access-btn"><i class="fas fa-print mr-1"></i>Print Record</button>
-        <button onclick="window.print()" class="access-btn"><i class="fas fa-file-pdf mr-1"></i>Print Record</button>
+  <!-- MAIN HEADER -->
+  <div class="header-banner text-center py-1 mb-2 relative">
+    <h1 class="text-xl font-bold tracking-widest text-white inline-block bg-black px-6 border border-stone-700">
+      Employee Biodata/Profile
+    </h1>
+    <div id="liveClock" class="absolute right-3 top-2 text-xs text-stone-300 font-mono">9:23:03 am</div>
+  </div>
 
-        <div class="ml-auto text-xs text-slate-700 font-mono flex items-center space-x-2">
-            <span id="record-indicator" class="bg-white px-2 py-0.5 border border-slate-400 font-bold">Record: 0 of 0</span>
+  <!-- AUTHENTICATION MODAL -->
+  <div id="authModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-stone-800 text-cyan-400 border-2 border-red-500 max-w-sm w-full p-4 shadow-2xl">
+      <div class="flex justify-between items-center mb-3 pb-1 border-b border-stone-600">
+        <h3 class="font-bold text-sm text-white">Database User Sign In</h3>
+        <button onclick="closeAuthModal()" class="text-white font-bold">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-300 mb-1">Email Address</label>
+          <input type="email" id="authEmail" class="input-box" placeholder="admin@maletain.org">
         </div>
+        <div>
+          <label class="block text-stone-300 mb-1">Password</label>
+          <input type="password" id="authPassword" class="input-box" placeholder="••••••••">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button onclick="executeLogin()" class="ribbon-btn flex-1">Sign In</button>
+          <button onclick="executeRegister()" class="ribbon-btn flex-1 bg-amber-200">Register</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH / FIND RECORD MODAL -->
+  <div id="searchModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-stone-900 border-2 border-cyan-500 max-w-lg w-full p-4">
+      <div class="flex justify-between items-center mb-2 pb-1 border-b border-cyan-800">
+        <h3 class="font-bold text-sm text-white">Find Employee Record</h3>
+        <button onclick="closeSearchModal()" class="text-white font-bold">&times;</button>
+      </div>
+      <input type="text" id="searchInput" oninput="filterSearchResults()" placeholder="Type employee name, ID, or clan..." class="input-box mb-3">
+      <div id="searchResultsList" class="max-h-60 overflow-y-auto space-y-1 text-xs">
+        <!-- Search records populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN ACCESS FORM CONTAINER -->
+  <form id="employeeForm" onsubmit="event.preventDefault();" class="space-y-2">
+    
+    <!-- TOP RED SUB-SECTION HEADER -->
+    <div class="text-xs font-bold text-red-500 border-b border-red-500 mb-1 px-1">
+      Personal Information
     </div>
 
-    <!-- Header Banner -->
-    <div class="header-bg px-4 py-2 relative flex items-center justify-between border-b border-red-600">
-        <div class="absolute left-2 top-1 text-red-500 font-bold text-xs uppercase tracking-wider border-b border-red-500">
-            Personal Information
-        </div>
+    <!-- MAIN GRID CONTAINER -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2">
+
+      <!-- LEFT COLUMN: PERSONAL DETAILS & WORK INFO -->
+      <div class="lg:col-span-6 access-border-red p-2 bg-stone-900 grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1">
         
-        <div class="mx-auto bg-slate-900/90 border border-slate-600 text-white font-bold text-lg px-8 py-1 rounded shadow-lg tracking-wide uppercase">
-            Employee Biodata/Profile
+        <!-- PERSONAL DETAILS MATRIX -->
+        <div class="space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-2 text-center underline">Personal Details</div>
+          
+          <div class="flex items-center"><label class="w-28 label-text">Last Name:</label><input type="text" id="lastName" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">First Name:</label><input type="text" id="firstName" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">SEX:</label><input type="text" id="sex" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Date Of Birth:</label><input type="date" id="dob" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Number Of Children:</label><input type="number" id="children" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Height:</label><input type="number" id="height" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Weight:</label><input type="number" id="weight" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Marital Status:</label><input type="text" id="maritalStatus" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Religion:</label><input type="text" id="religion" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Clan:</label><input type="text" id="clan" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Tribe:</label><input type="text" id="tribe" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Birth Place:</label><input type="text" id="birthPlace" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Mobile Phone:</label><input type="text" id="mobilePhone" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Mobile Phone1:</label><input type="text" id="mobilePhone1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Email Address:</label><input type="email" id="email" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Home Ward:</label><input type="text" id="homeWard" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Home LLG:</label><input type="text" id="homeLLG" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Home District:</label><input type="text" id="homeDistrict" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Home Province:</label><input type="text" id="homeProvince" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Nationality:</label><input type="text" id="nationality" class="input-box"></div>
         </div>
 
-        <div id="live-clock" class="text-amber-300 font-mono text-xs font-semibold">
-            9:23:03 am
-        </div>
-    </div>
+        <!-- RIGHT SIDE: PHOTO & EMPLOYMENT MATRIX -->
+        <div class="space-y-1">
+          <!-- PHOTO UPLOAD BOX -->
+          <div class="flex flex-col items-center justify-center my-1">
+            <div class="w-28 h-28 bg-white border border-stone-500 relative flex items-center justify-center overflow-hidden">
+              <img id="photoPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" class="w-full h-full object-cover">
+              <label for="photoInput" class="absolute bottom-1 right-1 bg-white border border-black rounded-full p-0.5 cursor-pointer shadow">
+                <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              </label>
+              <input type="file" id="photoInput" accept="image/*" onchange="previewPhoto(event)" class="hidden">
+            </div>
+          </div>
 
-    <!-- Main Form Workspace -->
-    <form id="employee-form" onsubmit="event.preventDefault();" class="flex-grow p-2 space-y-2 max-w-[1600px] mx-auto w-full">
+          <!-- EMPLOYMENT DETAILS -->
+          <div class="flex items-center"><label class="w-28 label-text">Title:</label><select id="title" class="input-box"><option>Mr.</option><option>Mrs.</option><option>Ms.</option><option>Dr.</option></select></div>
+          <div class="flex items-center"><label class="w-28 label-text">Employee ID:</label><input type="text" id="employeeId" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Employer:</label><input type="text" id="employer" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Start Date:</label><input type="date" id="startDate" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Job Title2:</label><select id="jobTitle2" class="input-box"><option>Officer</option><option>Manager</option><option>Supervisor</option></select></div>
+          <div class="flex items-center"><label class="w-28 label-text">Department:</label><select id="department" class="input-box"><option>HR</option><option>Finance</option><option>Operations</option></select></div>
+          <div class="flex items-center"><label class="w-28 label-text">Division:</label><select id="division" class="input-box"><option>Corporate</option><option>Field</option></select></div>
+          <div class="flex items-center"><label class="w-28 label-text">HOD:</label><select id="hod" class="input-box"><option>Approved</option><option>Pending</option></select></div>
+          <div class="flex items-center"><label class="w-28 label-text">Supervisor:</label><input type="text" id="supervisor" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Work Location:</label><input type="text" id="workLocation" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Current Rate:</label><input type="text" id="currentRate" value="K0.00" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Status:</label><input type="text" id="status" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Exit Date:</label><input type="date" id="exitDate" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Number Of years:</label><input type="number" id="years" value="0" class="input-box"></div>
+        </div>
+      </div>
+
+      <!-- MIDDLE COLUMN: PREVIOUS EMPLOYMENT, EDUCATION, BANKING -->
+      <div class="lg:col-span-3 space-y-2">
         
-        <!-- Top Container with Red Outer Border -->
-        <div class="red-border-panel">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-2">
-                
-                <!-- LEFT COLUMN: Personal Details & Work Info (5 Cols) -->
-                <div class="lg:col-span-5 space-y-2">
-                    <div class="red-border-panel">
-                        <div class="section-header">Personal Details</div>
-                        
-                        <div class="grid grid-cols-12 gap-1 items-center">
-                            
-                            <!-- Fields Left Side -->
-                            <div class="col-span-8 space-y-1">
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Last Name:</label>
-                                    <input type="text" id="lastName" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">First Name:</label>
-                                    <input type="text" id="firstName" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">SEX:</label>
-                                    <select id="sex" class="col-span-7 access-input">
-                                        <option value=""></option>
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Date Of Birth:</label>
-                                    <input type="date" id="dob" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Number of Children:</label>
-                                    <input type="number" id="children" value="0" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Height:</label>
-                                    <input type="number" id="height" value="0" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Weight:</label>
-                                    <input type="number" id="weight" value="0" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Maritial Status:</label>
-                                    <select id="maritalStatus" class="col-span-7 access-input">
-                                        <option value=""></option>
-                                        <option value="Single">Single</option>
-                                        <option value="Married">Married</option>
-                                        <option value="Divorced">Divorced</option>
-                                        <option value="Widowed">Widowed</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Religion:</label>
-                                    <input type="text" id="religion" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Clan:</label>
-                                    <input type="text" id="clan" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Tribe:</label>
-                                    <input type="text" id="tribe" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Birth Place:</label>
-                                    <input type="text" id="birthPlace" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Mobile Phone:</label>
-                                    <input type="text" id="mobilePhone" value="0" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Mobile Phone1:</label>
-                                    <input type="text" id="mobilePhone1" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Email Address:</label>
-                                    <input type="email" id="email" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Home Ward:</label>
-                                    <input type="text" id="homeWard" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Home LLG:</label>
-                                    <input type="text" id="homeLLG" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Home District:</label>
-                                    <input type="text" id="homeDistrict" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Home Province:</label>
-                                    <input type="text" id="homeProvince" class="col-span-7 access-input">
-                                </div>
-                                <div class="grid grid-cols-12 items-center">
-                                    <label class="col-span-5 access-label">Nationality:</label>
-                                    <input type="text" id="nationality" class="col-span-7 access-input">
-                                </div>
-                            </div>
-
-                            <!-- Photo Box & Right Work Fields -->
-                            <div class="col-span-4 space-y-2 flex flex-col items-center">
-                                <!-- Profile Photo Frame -->
-                                <div class="relative w-32 h-36 border-2 border-white bg-white flex flex-col items-center justify-center overflow-hidden cursor-pointer group" onclick="triggerPhotoUpload()">
-                                    <img id="photo-preview" class="w-full h-full object-cover hidden" alt="Profile Preview">
-                                    <div id="photo-placeholder" class="text-center text-slate-800">
-                                        <i class="fas fa-user text-6xl"></i>
-                                        <div class="absolute bottom-1 right-1 bg-black text-white rounded-full w-6 h-6 flex items-center justify-center border border-white">
-                                            <i class="fas fa-plus text-xs"></i>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="photo-file" accept="image/*" class="hidden" onchange="previewPhoto(event)">
-                                </div>
-
-                                <!-- Employment Fields Column under Photo -->
-                                <div class="w-full space-y-1">
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Title:</label>
-                                        <select id="title" class="col-span-7 access-input">
-                                            <option value=""></option>
-                                            <option value="Mr.">Mr.</option>
-                                            <option value="Mrs.">Mrs.</option>
-                                            <option value="Ms.">Ms.</option>
-                                            <option value="Dr.">Dr.</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Employee ID:</label>
-                                        <input type="text" id="employeeId" class="col-span-7 access-input font-bold">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Employer:</label>
-                                        <input type="text" id="employer" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Start Date:</label>
-                                        <input type="date" id="startDate" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Job Title2:</label>
-                                        <select id="jobTitle2" class="col-span-7 access-input">
-                                            <option value=""></option>
-                                            <option value="Officer">Officer</option>
-                                            <option value="Manager">Manager</option>
-                                            <option value="Supervisor">Supervisor</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Department:</label>
-                                        <select id="department" class="col-span-7 access-input">
-                                            <option value=""></option>
-                                            <option value="HR">HR</option>
-                                            <option value="Finance">Finance</option>
-                                            <option value="Operations">Operations</option>
-                                            <option value="IT">IT</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Division:</label>
-                                        <select id="division" class="col-span-7 access-input">
-                                            <option value=""></option>
-                                            <option value="Corporate">Corporate</option>
-                                            <option value="Field Services">Field Services</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">HOD:</label>
-                                        <select id="hod" class="col-span-7 access-input">
-                                            <option value=""></option>
-                                            <option value="Approved">Approved</option>
-                                            <option value="Pending">Pending</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Supervisor:</label>
-                                        <input type="text" id="supervisor" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Work Location:</label>
-                                        <input type="text" id="workLocation" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Current Rate:</label>
-                                        <input type="text" id="currentRate" value="K0.00" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Status:</label>
-                                        <input type="text" id="status" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Exit Date:</label>
-                                        <input type="date" id="exitDate" class="col-span-7 access-input">
-                                    </div>
-                                    <div class="grid grid-cols-12 items-center">
-                                        <label class="col-span-5 access-label">Number Of years:</label>
-                                        <input type="number" id="numYears" value="0" class="col-span-7 access-input">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MIDDLE COLUMN: Previous Employment, Education, & Banking (4 Cols) -->
-                <div class="lg:col-span-4 space-y-2">
-                    
-                    <!-- Previous Employment Details -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Previous Employment Details</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Employer1:</label><input type="text" id="employer1" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position1:</label><input type="text" id="position1" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date1:</label><input type="date" id="startDate1" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date1:</label><input type="date" id="endDate1" class="col-span-7 access-input"></div>
-                            
-                            <div class="grid grid-cols-12 items-center pt-1"><label class="col-span-5 access-label">Employer2:</label><input type="text" id="employer2" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position2:</label><input type="text" id="position2" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date2:</label><input type="date" id="startDate2" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date2:</label><input type="date" id="endDate2" class="col-span-7 access-input"></div>
-                            
-                            <div class="grid grid-cols-12 items-center pt-1"><label class="col-span-5 access-label">Employer3:</label><input type="text" id="employer3" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Position3:</label><input type="text" id="position3" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Start Date3:</label><input type="date" id="startDate3" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">End Date3:</label><input type="date" id="endDate3" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                    <!-- Educational Background -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Educational Background</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Highest Institution:</label><input type="text" id="highestInstitution" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Certificate Attained:</label><input type="text" id="certificateAttained" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Other Training:</label><input type="text" id="otherTraining" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Certificate Attained2:</label><input type="text" id="certificateAttained2" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                    <!-- Bank Account Details -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Bank Account Details</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Account Number:</label><input type="text" id="accountNumber" value="0" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Bank Name:</label><input type="text" id="bankName" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Branch:</label><input type="text" id="branch" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- RIGHT COLUMN: Residence, Emergency, Medical, & Documents (3 Cols) -->
-                <div class="lg:col-span-3 space-y-2">
-                    
-                    <!-- Current Residence -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Current Residence</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Lot/Section:</label><input type="text" id="lotSection" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Village Residence:</label><input type="text" id="villageResidence" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">LLG Residence:</label><input type="text" id="llgResidence" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">District Residence:</label><input type="text" id="districtResidence" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Province Residence:</label><input type="text" id="provinceResidence" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Zip/Postal Code:</label><input type="text" id="zipCode" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                    <!-- Emergency Contact Details -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Emergency Contact Details</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Full Name:</label><input type="text" id="emergFullName" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Phone No:</label><input type="text" id="emergPhone" value="0" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Address1:</label><input type="text" id="emergAddress" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Relationship:</label><input type="text" id="emergRelationship" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                    <!-- Medical Information -->
-                    <div class="red-border-panel">
-                        <div class="section-header">Medical Information</div>
-                        <div class="space-y-1">
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Medical Officer:</label><input type="text" id="medOfficer" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Insurance Carrier:</label><input type="text" id="insuranceCarrier" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Insurance Number:</label><input type="text" id="insuranceNumber" value="0" class="col-span-7 access-input"></div>
-                            <div class="grid grid-cols-12 items-center"><label class="col-span-5 access-label">Medications:</label><input type="text" id="medications" class="col-span-7 access-input"></div>
-                        </div>
-                    </div>
-
-                    <!-- Documents Box -->
-                    <div class="red-border-panel text-center">
-                        <div class="section-header">Documents</div>
-                        <div class="flex flex-col items-center justify-center p-2 bg-white/5 border border-dashed border-slate-500 rounded cursor-pointer" onclick="triggerDocUpload()">
-                            <div class="relative inline-block">
-                                <i class="fas fa-file-alt text-5xl text-slate-300"></i>
-                                <span class="absolute -right-2 -bottom-1 bg-purple-600 text-white rounded-full p-1 text-xs border border-white">
-                                    <i class="fas fa-paperclip"></i>
-                                </span>
-                            </div>
-                            <span id="doc-count-label" class="text-xs text-cyan-400 mt-2 font-semibold">0 Attachments</span>
-                            <input type="file" id="doc-file" multiple class="hidden" onchange="handleDocUpload(event)">
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
+        <!-- PREVIOUS EMPLOYMENT DETAILS -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Previous Employment Details</div>
+          <div class="flex items-center"><label class="w-24 label-text">Employer1:</label><input type="text" id="emp1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Position1:</label><input type="text" id="pos1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Start Date1:</label><input type="date" id="start1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">End Date1:</label><input type="date" id="end1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Employer2:</label><input type="text" id="emp2" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Position2:</label><input type="text" id="pos2" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Start Date2:</label><input type="date" id="start2" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">End Date2:</label><input type="date" id="end2" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Employer3:</label><input type="text" id="emp3" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Position3:</label><input type="text" id="pos3" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">Start Date3:</label><input type="date" id="start3" class="input-box"></div>
+          <div class="flex items-center"><label class="w-24 label-text">End Date3:</label><input type="date" id="end3" class="input-box"></div>
         </div>
-    </form>
 
-    <!-- Find Record Modal -->
-    <div id="find-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 hidden">
-        <div class="bg-slate-800 border-2 border-amber-500 rounded-sm w-96 shadow-2xl p-4 text-xs">
-            <div class="flex justify-between items-center border-b border-slate-600 pb-2 mb-3">
-                <span class="font-bold text-amber-400 text-sm"><i class="fas fa-search mr-1"></i>Find Employee Record</span>
-                <button onclick="closeFindModal()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
-            </div>
-            
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-slate-300 mb-1">Search by Name or Employee ID:</label>
-                    <input type="text" id="search-query" onkeyup="filterFindResults()" placeholder="Type to filter..." class="w-full bg-black text-cyan-400 border border-slate-600 p-1.5 outline-none font-mono">
-                </div>
-
-                <div id="search-results" class="max-h-48 overflow-y-auto border border-slate-700 bg-slate-900 divide-y divide-slate-800">
-                    <!-- Results populated dynamically -->
-                </div>
-            </div>
-
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeFindModal()" class="access-btn">Cancel</button>
-            </div>
+        <!-- EDUCATIONAL BACKGROUND -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Educational Background</div>
+          <div class="flex items-center"><label class="w-28 label-text">Highest Institution:</label><input type="text" id="institution" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Certificate Attained:</label><input type="text" id="cert1" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Other Training:</label><input type="text" id="otherTraining" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Certificate Attained2:</label><input type="text" id="cert2" class="input-box"></div>
         </div>
+
+        <!-- BANK ACCOUNT DETAILS -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Bank Account Details</div>
+          <div class="flex items-center"><label class="w-28 label-text">Account Number:</label><input type="text" id="accountNumber" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Bank Name:</label><input type="text" id="bankName" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Branch:</label><input type="text" id="bankBranch" class="input-box"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: RESIDENCE, EMERGENCY, MEDICAL, DOCUMENTS -->
+      <div class="lg:col-span-3 space-y-2">
+        
+        <!-- CURRENT RESIDENCE -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Current Residence</div>
+          <div class="flex items-center"><label class="w-28 label-text">Lot/Section:</label><input type="text" id="lotSection" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Village Residence:</label><input type="text" id="villageRes" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">LLG Residence:</label><input type="text" id="llgRes" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">District Residence:</label><input type="text" id="districtRes" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Province Residence:</label><input type="text" id="provinceRes" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Zip/Postal Code:</label><input type="text" id="zipCode" class="input-box"></div>
+        </div>
+
+        <!-- EMERGENCY CONTACT DETAILS -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Emergency Contact Details</div>
+          <div class="flex items-center"><label class="w-28 label-text">Full Name:</label><input type="text" id="emgName" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Phone No:</label><input type="text" id="emgPhone" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Address1:</label><input type="text" id="emgAddress" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Relationship:</label><input type="text" id="emgRelation" class="input-box"></div>
+        </div>
+
+        <!-- MEDICAL INFORMATION -->
+        <div class="access-border-red p-2 bg-stone-900 space-y-1">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Medical Information</div>
+          <div class="flex items-center"><label class="w-28 label-text">Medical Officer:</label><input type="text" id="medOfficer" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Insurance Carrier:</label><input type="text" id="insCarrier" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Insurance Number:</label><input type="text" id="insNumber" value="0" class="input-box"></div>
+          <div class="flex items-center"><label class="w-28 label-text">Medications:</label><input type="text" id="medications" class="input-box"></div>
+        </div>
+
+        <!-- DOCUMENTS ATTACHMENT BOX -->
+        <div class="access-border-red p-2 bg-stone-900">
+          <div class="text-xs font-bold text-cyan-400 mb-1 text-center underline">Documents</div>
+          <div class="border border-stone-600 bg-white p-2 flex flex-col items-center justify-center min-h-[70px]">
+            <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+            </svg>
+            <input type="file" id="docInput" class="text-[10px] text-stone-700 mt-1 w-full">
+          </div>
+        </div>
+
+      </div>
+
     </div>
+  </form>
 
-    <!-- Application Script Logic -->
-    <script>
-        let db = JSON.parse(localStorage.getItem('ms_access_employee_db')) || [];
-        let currentRecordIndex = -1;
-        let currentPhotoData = '';
-        let attachedDocs = [];
+  <script>
+    let currentPhotoBase64 = "";
+    let localDatabase = [];
 
-        // Digital Clock
-        function updateClock() {
-            const now = new Date();
-            let hours = now.getHours();
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'pm' : 'am';
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+    // Live Clock Update
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('liveClock').textContent = now.toLocaleTimeString().toLowerCase();
+    }, 1000);
 
-        // Initialize App
-        window.onload = function() {
-            if (db.length === 0) {
-                // Seed default empty sample record if empty
-                createDefaultRecord();
-            } else {
-                loadRecord(0);
-            }
-            updateDropdownSelector();
+    function previewPhoto(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          currentPhotoBase64 = e.target.result;
+          document.getElementById('photoPreview').src = currentPhotoBase64;
         };
+        reader.readAsDataURL(file);
+      }
+    }
 
-        function createDefaultRecord() {
-            const sample = {
-                id: 'EMP-' + Math.floor(1000 + Math.random() * 9000),
-                lastName: 'Maletain',
-                firstName: 'Samuel',
-                sex: 'Male',
-                dob: '1990-05-14',
-                children: 2,
-                height: 175,
-                weight: 70,
-                maritalStatus: 'Married',
-                religion: 'Christian',
-                clan: 'Maletain North',
-                tribe: 'Central Tribe',
-                birthPlace: 'Port Moresby',
-                mobilePhone: '71234567',
-                mobilePhone1: '78901234',
-                email: 'samuel.maletain@example.com',
-                homeWard: 'Ward 1',
-                homeLLG: 'Moresby South',
-                homeDistrict: 'NCD',
-                homeProvince: 'NCD',
-                nationality: 'Papua New Guinean',
-                title: 'Mr.',
-                employeeId: 'EMP-1001',
-                employer: 'Maletain Association',
-                startDate: '2020-01-15',
-                jobTitle2: 'Officer',
-                department: 'IT',
-                division: 'Corporate',
-                hod: 'Approved',
-                supervisor: 'John Doe',
-                workLocation: 'Port Moresby HQ',
-                currentRate: 'K25.00',
-                status: 'Active',
-                exitDate: '',
-                numYears: 4,
-                photo: '',
-                docs: []
-            };
-            db.push(sample);
-            saveToStorage();
-            loadRecord(0);
+    async function executeLogin() {
+      const email = document.getElementById('authEmail').value;
+      const pass = document.getElementById('authPassword').value;
+      try {
+        await window.authTools.signInWithEmailAndPassword(window.auth, email, pass);
+        alert("Sign in successful!");
+        closeAuthModal();
+      } catch (err) {
+        alert("Sign In Failed: " + err.message);
+      }
+    }
+
+    async function executeRegister() {
+      const email = document.getElementById('authEmail').value;
+      const pass = document.getElementById('authPassword').value;
+      try {
+        await window.authTools.createUserWithEmailAndPassword(window.auth, email, pass);
+        alert("Account created and logged in!");
+        closeAuthModal();
+      } catch (err) {
+        alert("Registration Failed: " + err.message);
+      }
+    }
+
+    async function saveAndNew() {
+      const record = {
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        employeeId: document.getElementById('employeeId').value || "EMP-" + Date.now().toString().slice(-4),
+        clan: document.getElementById('clan').value,
+        department: document.getElementById('department').value,
+        mobilePhone: document.getElementById('mobilePhone').value,
+        email: document.getElementById('email').value,
+        photo: currentPhotoBase64,
+        createdAt: new Date().toISOString()
+      };
+
+      if (!record.firstName && !record.lastName) {
+        alert("Please enter at least First Name or Last Name before saving.");
+        return;
+      }
+
+      // Save to Cloud Firestore
+      try {
+        if (window.db && window.firestoreTools) {
+          const { collection, addDoc } = window.firestoreTools;
+          await addDoc(collection(window.db, "employee_records"), record);
+          alert("Record saved to Cloud Database!");
         }
+      } catch (err) {
+        console.warn("Firestore save fallback to local:", err);
+      }
 
-        function saveToStorage() {
-            localStorage.setItem('ms_access_employee_db', JSON.stringify(db));
-            updateDropdownSelector();
-        }
+      // Save to local state
+      localDatabase.push(record);
+      updateDropdown();
+      document.getElementById('employeeForm').reset();
+      currentPhotoBase64 = "";
+    }
 
-        function getFormData() {
-            return {
-                id: document.getElementById('employeeId').value || ('EMP-' + Date.now().toString().slice(-4)),
-                lastName: document.getElementById('lastName').value,
-                firstName: document.getElementById('firstName').value,
-                sex: document.getElementById('sex').value,
-                dob: document.getElementById('dob').value,
-                children: document.getElementById('children').value,
-                height: document.getElementById('height').value,
-                weight: document.getElementById('weight').value,
-                maritalStatus: document.getElementById('maritalStatus').value,
-                religion: document.getElementById('religion').value,
-                clan: document.getElementById('clan').value,
-                tribe: document.getElementById('tribe').value,
-                birthPlace: document.getElementById('birthPlace').value,
-                mobilePhone: document.getElementById('mobilePhone').value,
-                mobilePhone1: document.getElementById('mobilePhone1').value,
-                email: document.getElementById('email').value,
-                homeWard: document.getElementById('homeWard').value,
-                homeLLG: document.getElementById('homeLLG').value,
-                homeDistrict: document.getElementById('homeDistrict').value,
-                homeProvince: document.getElementById('homeProvince').value,
-                nationality: document.getElementById('nationality').value,
-                title: document.getElementById('title').value,
-                employeeId: document.getElementById('employeeId').value,
-                employer: document.getElementById('employer').value,
-                startDate: document.getElementById('startDate').value,
-                jobTitle2: document.getElementById('jobTitle2').value,
-                department: document.getElementById('department').value,
-                division: document.getElementById('division').value,
-                hod: document.getElementById('hod').value,
-                supervisor: document.getElementById('supervisor').value,
-                workLocation: document.getElementById('workLocation').value,
-                currentRate: document.getElementById('currentRate').value,
-                status: document.getElementById('status').value,
-                exitDate: document.getElementById('exitDate').value,
-                numYears: document.getElementById('numYears').value,
-                
-                // Previous Employment
-                employer1: document.getElementById('employer1').value,
-                position1: document.getElementById('position1').value,
-                startDate1: document.getElementById('startDate1').value,
-                endDate1: document.getElementById('endDate1').value,
-                employer2: document.getElementById('employer2').value,
-                position2: document.getElementById('position2').value,
-                startDate2: document.getElementById('startDate2').value,
-                endDate2: document.getElementById('endDate2').value,
-                employer3: document.getElementById('employer3').value,
-                position3: document.getElementById('position3').value,
-                startDate3: document.getElementById('startDate3').value,
-                endDate3: document.getElementById('endDate3').value,
+    async function loadCloudRecords() {
+      if (!window.db || !window.firestoreTools) return;
+      const { collection, getDocs } = window.firestoreTools;
+      try {
+        const querySnapshot = await getDocs(collection(window.db, "employee_records"));
+        localDatabase = [];
+        querySnapshot.forEach((doc) => {
+          localDatabase.push({ id: doc.id, ...doc.data() });
+        });
+        updateDropdown();
+      } catch (err) {
+        console.error("Error loading cloud records:", err);
+      }
+    }
 
-                // Education
-                highestInstitution: document.getElementById('highestInstitution').value,
-                certificateAttained: document.getElementById('certificateAttained').value,
-                otherTraining: document.getElementById('otherTraining').value,
-                certificateAttained2: document.getElementById('certificateAttained2').value,
+    function updateDropdown() {
+      const dropdown = document.getElementById('goToDropdown');
+      dropdown.innerHTML = '<option value="">-- Select --</option>';
+      localDatabase.forEach((rec, idx) => {
+        const name = `${rec.firstName || ''} ${rec.lastName || ''}`.trim() || `Record #${idx+1}`;
+        dropdown.innerHTML += `<option value="${idx}">${name}</option>`;
+      });
+    }
 
-                // Bank
-                accountNumber: document.getElementById('accountNumber').value,
-                bankName: document.getElementById('bankName').value,
-                branch: document.getElementById('branch').value,
+    function loadSelectedRecord(idx) {
+      if (idx === "" || !localDatabase[idx]) return;
+      const rec = localDatabase[idx];
+      document.getElementById('firstName').value = rec.firstName || "";
+      document.getElementById('lastName').value = rec.lastName || "";
+      document.getElementById('employeeId').value = rec.employeeId || "";
+      document.getElementById('clan').value = rec.clan || "";
+      document.getElementById('department').value = rec.department || "HR";
+      document.getElementById('mobilePhone').value = rec.mobilePhone || "0";
+      document.getElementById('email').value = rec.email || "";
+      if (rec.photo) document.getElementById('photoPreview').src = rec.photo;
+    }
 
-                // Residence
-                lotSection: document.getElementById('lotSection').value,
-                villageResidence: document.getElementById('villageResidence').value,
-                llgResidence: document.getElementById('llgResidence').value,
-                districtResidence: document.getElementById('districtResidence').value,
-                provinceResidence: document.getElementById('provinceResidence').value,
-                zipCode: document.getElementById('zipCode').value,
+    function sendEmail() {
+      const email = document.getElementById('email').value;
+      if (email) {
+        window.location.href = `mailto:${email}`;
+      } else {
+        alert("No email address entered for this employee.");
+      }
+    }
 
-                // Emergency
-                emergFullName: document.getElementById('emergFullName').value,
-                emergPhone: document.getElementById('emergPhone').value,
-                emergAddress: document.getElementById('emergAddress').value,
-                emergRelationship: document.getElementById('emergRelationship').value,
+    function saveOutlookContact() {
+      const fn = document.getElementById('firstName').value;
+      const ln = document.getElementById('lastName').value;
+      const em = document.getElementById('email').value;
+      const ph = document.getElementById('mobilePhone').value;
+      const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${ln};${fn};;;\nFN:${fn} ${ln}\nTEL:${ph}\nEMAIL:${em}\nEND:VCARD`;
+      
+      const blob = new Blob([vcard], { type: 'text/vcard' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fn}_${ln}.vcf`;
+      a.click();
+    }
 
-                // Medical
-                medOfficer: document.getElementById('medOfficer').value,
-                insuranceCarrier: document.getElementById('insuranceCarrier').value,
-                insuranceNumber: document.getElementById('insuranceNumber').value,
-                medications: document.getElementById('medications').value,
+    function openSearchModal() { document.getElementById('searchModal').classList.remove('hidden'); filterSearchResults(); }
+    function closeSearchModal() { document.getElementById('searchModal').classList.add('hidden'); }
 
-                photo: currentPhotoData,
-                docs: attachedDocs
-            };
-        }
+    function filterSearchResults() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const list = document.getElementById('searchResultsList');
+      list.innerHTML = "";
+      
+      const filtered = localDatabase.filter(r => 
+        (r.firstName && r.firstName.toLowerCase().includes(query)) ||
+        (r.lastName && r.lastName.toLowerCase().includes(query)) ||
+        (r.employeeId && r.employeeId.toLowerCase().includes(query))
+      );
 
-        function loadRecord(index) {
-            if (index < 0 || index >= db.length) return;
-            currentRecordIndex = index;
-            const r = db[index];
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="text-stone-400 text-center py-2">No matching records found.</div>`;
+        return;
+      }
 
-            const fields = [
-                'lastName','firstName','sex','dob','children','height','weight','maritalStatus',
-                'religion','clan','tribe','birthPlace','mobilePhone','mobilePhone1','email',
-                'homeWard','homeLLG','homeDistrict','homeProvince','nationality','title',
-                'employeeId','employer','startDate','jobTitle2','department','division','hod',
-                'supervisor','workLocation','currentRate','status','exitDate','numYears',
-                'employer1','position1','startDate1','endDate1','employer2','position2',
-                'startDate2','endDate2','employer3','position3','startDate3','endDate3',
-                'highestInstitution','certificateAttained','otherTraining','certificateAttained2',
-                'accountNumber','bankName','branch','lotSection','villageResidence','llgResidence',
-                'districtResidence','provinceResidence','zipCode','emergFullName','emergPhone',
-                'emergAddress','emergRelationship','medOfficer','insuranceCarrier','insuranceNumber','medications'
-            ];
-
-            fields.forEach(f => {
-                const el = document.getElementById(f);
-                if (el) el.value = r[f] !== undefined ? r[f] : '';
-            });
-
-            // Photo preview
-            currentPhotoData = r.photo || '';
-            const preview = document.getElementById('photo-preview');
-            const placeholder = document.getElementById('photo-placeholder');
-            if (currentPhotoData) {
-                preview.src = currentPhotoData;
-                preview.classList.remove('hidden');
-                placeholder.classList.add('hidden');
-            } else {
-                preview.classList.add('hidden');
-                placeholder.classList.remove('hidden');
-            }
-
-            // Documents
-            attachedDocs = r.docs || [];
-            document.getElementById('doc-count-label').textContent = `${attachedDocs.length} Attachments`;
-
-            // Indicator
-            document.getElementById('record-indicator').textContent = `Record: ${currentRecordIndex + 1} of ${db.length}`;
-            document.getElementById('goto-selector').value = currentRecordIndex;
-        }
-
-        function saveAndNewRecord() {
-            const data = getFormData();
-            if (currentRecordIndex >= 0 && currentRecordIndex < db.length) {
-                db[currentRecordIndex] = data;
-            } else {
-                db.push(data);
-            }
-            saveToStorage();
-
-            // Clear Form for New
-            document.getElementById('employee-form').reset();
-            currentPhotoData = '';
-            attachedDocs = [];
-            document.getElementById('photo-preview').classList.add('hidden');
-            document.getElementById('photo-placeholder').classList.remove('hidden');
-            document.getElementById('doc-count-label').textContent = '0 Attachments';
-            document.getElementById('employeeId').value = 'EMP-' + Math.floor(1000 + Math.random() * 9000);
-
-            currentRecordIndex = db.length; // New entry pointer
-            document.getElementById('record-indicator').textContent = `Record: New (${db.length + 1})`;
-            alert('Record saved successfully. Form ready for new employee profile.');
-        }
-
-        function updateDropdownSelector() {
-            const select = document.getElementById('goto-selector');
-            select.innerHTML = '<option value="">-- Select --</option>';
-            db.forEach((rec, idx) => {
-                const opt = document.createElement('option');
-                opt.value = idx;
-                opt.textContent = `${rec.firstName || 'Unnamed'} ${rec.lastName || ''} (${rec.employeeId || idx})`;
-                select.appendChild(opt);
-            });
-        }
-
-        function navigateToRecord(idx) {
-            if (idx === '') return;
-            loadRecord(parseInt(idx));
-        }
-
-        function triggerPhotoUpload() {
-            document.getElementById('photo-file').click();
-        }
-
-        function previewPhoto(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    currentPhotoData = e.target.result;
-                    const preview = document.getElementById('photo-preview');
-                    const placeholder = document.getElementById('photo-placeholder');
-                    preview.src = currentPhotoData;
-                    preview.classList.remove('hidden');
-                    placeholder.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function triggerDocUpload() {
-            document.getElementById('doc-file').click();
-        }
-
-        function handleDocUpload(event) {
-            const files = Array.from(event.target.files);
-            files.forEach(f => {
-                attachedDocs.push(f.name);
-            });
-            document.getElementById('doc-count-label').textContent = `${attachedDocs.length} Attachments`;
-        }
-
-        // Email & Outlook placeholders
-        function emailEmployee() {
-            const email = document.getElementById('email').value;
-            if (email) {
-                window.location.href = `mailto:${email}?subject=Employee%20Record%20-%20${document.getElementById('firstName').value}%20${document.getElementById('lastName').value}`;
-            } else {
-                alert('No email address entered for this employee.');
-            }
-        }
-
-        function saveOutlookContact() {
-            alert('Outlook vCard Contact exported for ' + document.getElementById('firstName').value + ' ' + document.getElementById('lastName').value);
-        }
-
-        // Find Modal
-        function openFindModal() {
-            document.getElementById('find-modal').classList.remove('hidden');
-            filterFindResults();
-        }
-
-        function closeFindModal() {
-            document.getElementById('find-modal').classList.add('hidden');
-        }
-
-        function filterFindResults() {
-            const query = document.getElementById('search-query').value.toLowerCase();
-            const container = document.getElementById('search-results');
-            container.innerHTML = '';
-
-            db.forEach((rec, idx) => {
-                const name = `${rec.firstName} ${rec.lastName}`.toLowerCase();
-                const empId = (rec.employeeId || '').toLowerCase();
-                if (name.includes(query) || empId.includes(query)) {
-                    const item = document.createElement('div');
-                    item.className = 'p-2 hover:bg-slate-700 cursor-pointer text-cyan-300 font-mono text-xs flex justify-between';
-                    item.innerHTML = `<span>${rec.firstName} ${rec.lastName}</span> <span class="text-slate-400">${rec.employeeId}</span>`;
-                    item.onclick = function() {
-                        loadRecord(idx);
-                        closeFindModal();
-                    };
-                    container.appendChild(item);
-                }
-            });
-        }
-
-        function closeApp() {
-            if (confirm('Close Employee Details database application?')) {
-                document.body.innerHTML = '<div class="flex items-center justify-center min-h-screen text-slate-400 font-mono">MS Access Database session closed. Refresh tab to restart.</div>';
-            }
-        }
-
-        // Window controls mock
-        window.minimize = () => alert('Application minimized.');
-        window.maximize = () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-            } else {
-                document.exitFullscreen().catch(() => {});
-            }
-        };
-    </script>
+      filtered.forEach((rec) => {
+        const idx = localDatabase.indexOf(rec);
+        list.innerHTML += `
+          <div onclick="loadSelectedRecord(${idx}); closeSearchModal();" class="p-2 bg-stone-800 hover:bg-stone-700 cursor-pointer border border-stone-700 flex justify-between">
+            <span class="text-cyan-300 font-bold">${rec.firstName || ''} ${rec.lastName || ''}</span>
+            <span class="text-stone-400">${rec.employeeId || ''}</span>
+          </div>
+        `;
+      });
+    }
+  </script>
 </body>
 </html>
